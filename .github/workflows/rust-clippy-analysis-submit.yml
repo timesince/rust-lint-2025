@@ -1,0 +1,48 @@
+name: Submit Repositories
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: |
+          Can be 'top.txt' or 'awesome.txt', or some 'https://xxx' download link.
+          Default 'repo.txt'.
+        default: "repo.txt"
+      count:
+        description: |
+          Total submit repo count.
+          Default '1000'.
+        default: "1000"
+      workflow:
+        description: |
+          The workflow to submit with each repo.
+          Default 'rust-clippy-analysis.yml'.
+        default: "rust-clippy-analysis.yml"
+
+permissions:
+  actions: write
+env:
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Read repository URLs
+        id: read_repos
+        run: |
+          echo "REPO_URLS<<EOF" >> $GITHUB_ENV
+          while IFS= read -r line; do
+            echo "$line" >> $GITHUB_ENV
+          done < ${{ inputs.source }}
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Submit each repo to go-critic-analysis
+        run: |
+          IFS=$'\n' # Set the Internal Field Separator to newline
+          for url in $REPO_URLS; do
+            echo "Submitting repository: $url"
+            gh workflow run ${{ inputs.workflow }} --ref main --field repo_url=$url
+          done

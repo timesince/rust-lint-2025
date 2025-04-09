@@ -1,0 +1,93 @@
+name: Rust Clippy Analysis from linchiwangjing
+run-name: "run for ${{ inputs.repo_url }}"
+
+on:
+  workflow_dispatch: # 手动触发
+    inputs:
+      repo_url:
+        description: "The repository URL to analyze"
+        required: true
+
+permissions:  # 需要写入 issue 的权限
+  issues: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+          override: true
+      
+      - name: Debug environment
+        run: |
+          echo "Current shell: $SHELL"
+          echo "Current PATH: $PATH"
+          rustc --version
+          cargo --version
+          cargo clippy --version
+        shell: bash
+      
+      - name: Analyze the repository
+        run: |
+          repo="${{ inputs.repo_url }}"
+          echo "Processing repository: $repo"
+          repo_name=$(basename -s .git "$repo")
+          
+          # 创建临时目录并克隆仓库
+          mkdir -p repos
+          cd repos
+          git clone "$repo" "$repo_name"
+          cd "$repo_name"
+          
+          # 运行 Clippy 并捕获输出
+          cargo clippy -- -D warnings > ../../clippy-report-$repo_name.txt 2> ../../clippy-errors-$repo_name.txt || true
+          
+          # 返回上层目录
+          cd ..
+          rm -rf "$repo_name"
+        shell: bash
+      
+      - name: Collect analysis reports
+        run: |
+          repo_name=$(basename -s .git "${{ inputs.repo_url }}")
+          # 将报告和错误合并
+          REPORTS=$(cat clippy-report-$repo_name.txt 2>/dev/null || echo "没有生成报告")
+          ERRORS=$(cat clippy-errors-$repo_name.txt 2>/dev/null || echo "没有错误")
+          
+          # 将报告和错误设置为输出变量
+          echo "reports<<EOF" >> $GITHUB_ENV
+          echo -e "### $repo_name 报告:\n\`\`\`\n$REPORTS\n\`\`\`" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "errors<<EOF" >> $GITHUB_ENV
+          echo -e "### $repo_name 错误:\n\`\`\`\n$ERRORS\n\`\`\`" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+        shell: bash
+      
+      - name: Create or update issue with analysis results
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: 1
+          body: |
+            # Rust Clippy 静态分析报告
+            
+            ## 项目路径
+            ${{ inputs.repo_url }}
+            
+            以下是 Clippy 产生的错误：
+            
+            ${{ env.errors }}
+            
+            ## 报告内容
+            
+            ${{ env.reports }}
