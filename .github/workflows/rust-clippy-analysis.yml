@@ -1,16 +1,13 @@
 name: Rust Clippy Analysis from linchiwangjing
 run-name: "run for ${{ inputs.repo_url }}"
-
 on:
   workflow_dispatch: # 手动触发
     inputs:
       repo_url:
         description: "The repository URL to analyze"
         required: true
-
 permissions:  # 需要写入 issue 的权限
   issues: write
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -48,6 +45,10 @@ jobs:
           git clone "$repo" "$repo_name"
           cd "$repo_name"
           
+          # 计算仓库大小
+          REPO_SIZE=$(du -sh . | cut -f1)
+          echo "仓库大小: $REPO_SIZE" > ../../repo-size-$repo_name.txt
+          
           # 运行 Clippy 并捕获输出
           cargo clippy -- -D warnings > ../../clippy-report-$repo_name.txt 2> ../../clippy-errors-$repo_name.txt || true
           
@@ -59,11 +60,18 @@ jobs:
       - name: Collect analysis reports
         run: |
           repo_name=$(basename -s .git "${{ inputs.repo_url }}")
+          # 获取仓库大小
+          REPO_SIZE=$(cat repo-size-$repo_name.txt 2>/dev/null || echo "无法获取仓库大小")
+          
           # 将报告和错误合并
           REPORTS=$(cat clippy-report-$repo_name.txt 2>/dev/null || echo "没有生成报告")
           ERRORS=$(cat clippy-errors-$repo_name.txt 2>/dev/null || echo "没有错误")
           
-          # 将报告和错误设置为输出变量
+          # 将仓库大小、报告和错误设置为输出变量
+          echo "repo_size<<EOF" >> $GITHUB_ENV
+          echo "$REPO_SIZE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
           echo "reports<<EOF" >> $GITHUB_ENV
           echo -e "### $repo_name 报告:\n\`\`\`\n$REPORTS\n\`\`\`" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
@@ -77,17 +85,18 @@ jobs:
         uses: peter-evans/create-or-update-comment@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: 1
+          issue-number: 2
           body: |
             # Rust Clippy 静态分析报告
             
             ## 项目路径
             ${{ inputs.repo_url }}
             
-            以下是 Clippy 产生的错误：
+            ## 仓库信息
+            ${{ env.repo_size }}
             
+            ## Clippy 错误
             ${{ env.errors }}
             
             ## 报告内容
-            
             ${{ env.reports }}
