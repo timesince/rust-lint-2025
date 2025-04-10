@@ -89,7 +89,7 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           
           echo "errors<<EOF" >> $GITHUB_ENV
-          echo -e "### $repo_name 错误:\n<details>\n<summary>点击展开详细错误</summary>\n\n\`\`\`\n$ERRORS\n\`\`\`\n</details>" >> $GITHUB_ENV
+          echo -e "### $repo_name 错误:\n\`\`\`\n$ERRORS\n\`\`\`" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
         shell: bash
       
@@ -97,7 +97,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: 3
+          issue-number: 2
           body: |
             # Rust Clippy 静态分析报告
             
