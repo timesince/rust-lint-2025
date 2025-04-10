@@ -45,12 +45,16 @@ jobs:
           git clone "$repo" "$repo_name"
           cd "$repo_name"
           
-          # 计算仓库大小
-          REPO_SIZE=$(du -sh . | cut -f1)
-          echo "仓库大小: $REPO_SIZE" > ../../repo-size-$repo_name.txt
+          # 计算初始仓库大小
+          REPO_SIZE_BEFORE=$(du -sh . | cut -f1)
+          echo "初始仓库大小: $REPO_SIZE_BEFORE" > ../../repo-size-before-$repo_name.txt
           
           # 运行 Clippy 并捕获输出
           cargo clippy -- -D warnings > ../../clippy-report-$repo_name.txt 2> ../../clippy-errors-$repo_name.txt || true
+          
+          # 计算分析后仓库大小
+          REPO_SIZE_AFTER=$(du -sh . | cut -f1)
+          echo "分析后仓库大小: $REPO_SIZE_AFTER" > ../../repo-size-after-$repo_name.txt
           
           # 返回上层目录
           cd ..
@@ -60,8 +64,14 @@ jobs:
       - name: Collect analysis reports
         run: |
           repo_name=$(basename -s .git "${{ inputs.repo_url }}")
-          # 获取仓库大小
-          REPO_SIZE=$(cat repo-size-$repo_name.txt 2>/dev/null || echo "无法获取仓库大小")
+          # 获取两次仓库大小
+          SIZE_BEFORE=$(cat repo-size-before-$repo_name.txt 2>/dev/null || echo "无法获取初始大小")
+          SIZE_AFTER=$(cat repo-size-after-$repo_name.txt 2>/dev/null || echo "无法获取分析后大小")
+          
+          # 合并仓库大小信息
+          echo "repo_size<<EOF" >> $GITHUB_ENV
+          echo -e "初始大小: ${SIZE_BEFORE#*: }\n分析后大小: ${SIZE_AFTER#*: }" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
           
           # 将报告和错误合并
           REPORTS=$(cat clippy-report-$repo_name.txt 2>/dev/null || echo "没有生成报告")
