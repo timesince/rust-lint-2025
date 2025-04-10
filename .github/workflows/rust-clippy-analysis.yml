@@ -51,8 +51,8 @@ jobs:
           
           # 运行 Clippy 并捕获输出
           # 参考博客 使用cargo clippy优化Rust项目 中 cargo clippy -- -D warnings和 cargo clippy有何区别？
-          #cargo clippy -- -D warnings > ../../clippy-report-$repo_name.txt 2> ../../clippy-errors-$repo_name.txt || true
-          cargo clippy ../../clippy-report-$repo_name.txt 2> ../../clippy-errors-$repo_name.txt || true
+          # cargo clippy -- -D warnings > ../../clippy-report-$repo_name.txt 2> ../../clippy-errors-$repo_name.txt || true
+          cargo clippy > ../../clippy-report-$repo_name.txt 2> ../../clippy-errors-$repo_name.txt || true
           
           # 计算分析后仓库大小
           REPO_SIZE_AFTER=$(du -sh . | cut -f1)
