@@ -82,6 +82,10 @@ jobs:
           # 将报告和错误合并
           REPORTS=$(cat clippy-report-$repo_name.txt 2>/dev/null || echo "没有生成报告")
           ERRORS=$(cat clippy-errors-$repo_name.txt 2>/dev/null || echo "没有错误")
+
+          # 新增过滤后的错误信息
+          FILTERED_ERRORS=$(echo "$ERRORS" | grep -vE 'Adding|Downloading|Downloaded|Compiling|Checking' || echo "没有需要过滤的错误")
+
           
           # 设置报告和错误环境变量
           echo "reports<<EOF" >> $GITHUB_ENV
@@ -91,6 +95,11 @@ jobs:
           echo "errors<<EOF" >> $GITHUB_ENV
           echo -e "### $repo_name 错误:\n<details>\n<summary>点击展开详细错误</summary>\n\n\`\`\`\n$ERRORS\n\`\`\`\n</details>" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+
+          echo "filtered_errors<<EOF" >> $GITHUB_ENV
+          echo -e "### $repo_name 过滤后错误:\n\`\`\`\n$FILTERED_ERRORS\n\`\`\`" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
         shell: bash
       
       - name: Create or update issue with analysis results
@@ -108,8 +117,11 @@ jobs:
             - 初始大小: ${{ env.SIZE_BEFORE }}
             - clappy分析后的大小: ${{ env.SIZE_AFTER }}
             
-            ## Clippy 错误
+            ## 原始 Clippy 信息（折叠）
             ${{ env.errors }}
             
+              ## 过滤后的 Clippy 信息
+            ${{ env.filtered_errors }}
+
             ## 报告内容
             ${{ env.reports }}
